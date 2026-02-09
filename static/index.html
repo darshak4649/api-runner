@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <title>API Testplan Runner</title>
+
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/icon?family=Material+Icons" />
+
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+<div class="header">
+    <div class="header-content">
+        <h1>🚀 API Testplan Runner</h1>
+        <p>Validate • Visualize • Execute • Report</p>
+    </div>
+</div>
+
+<div class="container">
+
+    <div class="card">
+        <div class="title">Select & Run Testplan</div>
+
+        <div class="control-row">
+            <select id="testplanSelect">
+                <option value="">-- Select Testplan --</option>
+            </select>
+
+            <button class="btn btn-refresh" onclick="loadTestplans()">🔄 Refresh</button>
+            <button class="btn btn-validate" onclick="validateTestplan()">✅ Validate</button>
+            <button class="btn btn-run" onclick="runTestplan()">▶ Run</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="title">Preview / Output</div>
+        <div id="previewArea">
+            <pre>Select a testplan and click Validate.</pre>
+        </div>
+    </div>
+
+    <div class="card" id="reportCard" style="display:none;">
+        <div class="title">📄 Reports</div>
+        <div id="reportLinks"></div>
+    </div>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

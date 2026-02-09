@@ -1,0 +1,198 @@
+body {
+  margin: 0;
+  font-family: "Roboto", "Helvetica", "Arial", sans-serif;
+  background: #eef2f6;
+}
+
+/* --------- HEADER --------- */
+.header {
+  background: linear-gradient(135deg, #1e3c72, #2a5298);
+  color: white;
+  padding: 20px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+}
+
+.header-content {
+  max-width: 1200px;
+  margin: auto;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 26px;
+}
+
+.header p {
+  margin: 6px 0 0 0;
+  opacity: 0.9;
+}
+
+/* --------- LAYOUT --------- */
+.container {
+  max-width: 1200px;
+  margin: 20px auto;
+  padding: 10px;
+}
+
+.card {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  margin-bottom: 16px;
+}
+
+.title {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+/* --------- CONTROL ROW --------- */
+.control-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.control-row select {
+  padding: 8px;
+  min-width: 260px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+}
+
+/* Buttons */
+.btn {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn-refresh {
+  background: #e3f2fd;
+  color: #0d47a1;
+}
+
+.btn-validate {
+  background: #e8f5e9;
+  color: #1b5e20;
+}
+
+.btn-run {
+  background: #e3f2fd;
+  color: #0d47a1;
+}
+
+/* -------- SEQUENTIAL CHAIN LAYOUT -------- */
+
+.chain-wrapper {
+  overflow-x: auto;
+  padding: 10px 5px;
+}
+
+/* One horizontal row of boxes */
+.chain-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Request box */
+.req-card {
+  min-width: 260px;
+  max-width: 300px;
+  background: white;
+  border-radius: 8px;
+  padding: 10px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.15);
+  border-left: 5px solid #1976d2;
+}
+
+/* Header inside card */
+.req-header {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+/* Method badges */
+.badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 11px;
+  margin-right: 6px;
+}
+
+.get-badge {
+  background: #e3f2fd;
+  color: #0d47a1;
+}
+
+.post-badge {
+  background: #e8f5e9;
+  color: #1b5e20;
+}
+
+/* Variable lines */
+.var-line {
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.uses {
+  color: #6a1b9a;
+}
+
+.produces {
+  color: #1b5e20;
+}
+
+/* Arrow between boxes */
+.chain-arrow {
+  font-size: 22px;
+  color: #616161;
+}
+
+/* Output */
+pre {
+  background: #f0f0f0;
+  padding: 10px;
+  max-height: 250px;
+  overflow: auto;
+  border-radius: 6px;
+  font-size: 13px;
+}
+/* -------- EXECUTION STATUS BADGES -------- */
+
+.status-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.status-pending {
+  background: #e0e0e0;
+  color: #424242;
+}
+
+.status-running {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.status-pass {
+  background: #e6fffa;
+  color: #065f46;
+}
+
+.status-fail {
+  background: #fee2e2;
+  color: #7f1d1d;
+}
