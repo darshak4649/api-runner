@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Set, Optional
 import requests
 
 # ---------- Logger ----------
-logger = logging.getLogger("API-runner.runner")
+logger = logging.getLogger("API-Runner.runner")
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
