@@ -1,54 +1,686 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8"/>
-    <title>API Testplan Runner</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Chain Runner</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0d1117;
+            --surface: #161b22;
+            --border: #30363d;
+            --text: #e6edf3;
+            --text-muted: #8b949e;
+            --accent: #58a6ff;
+            --accent-dim: #388bfd33;
+            --pass: #3fb950;
+            --fail: #f85149;
+            --warn: #d29922;
+            --method-get: #3fb950;
+            --method-post: #58a6ff;
+            --method-put: #d29922;
+            --method-delete: #f85149;
+        }
 
-    <link rel="stylesheet"
-          href="https://fonts.googleapis.com/icon?family=Material+Icons" />
+        * { box-sizing: border-box; }
+        html, body { height: 100%; margin: 0; }
+        body {
+            font-family: 'DM Sans', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+        }
 
-    <link rel="stylesheet" href="styles.css">
+        .navbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 20px;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+        }
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.1rem;
+            letter-spacing: -0.02em;
+        }
+        .navbar-brand span { color: var(--accent); }
+        .navbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-family: inherit;
+            font-weight: 500;
+            font-size: 13px;
+            cursor: pointer;
+            border: none;
+            transition: background 0.15s, transform 0.05s;
+        }
+        .btn:active { transform: scale(0.98); }
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+        }
+        .btn-ghost:hover { background: var(--surface); color: var(--text); }
+        .btn-primary {
+            background: var(--accent);
+            color: var(--bg);
+        }
+        .btn-primary:hover { filter: brightness(1.1); }
+        .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-success { background: var(--pass); color: var(--bg); }
+        .btn-success:hover { filter: brightness(1.1); }
+        .btn:disabled, .btn-success:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        .status-badge {
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .status-badge.idle { background: var(--surface); color: var(--text-muted); }
+        .status-badge.running { background: var(--warn); color: var(--bg); }
+        .status-badge.success { background: var(--pass); color: var(--bg); }
+        .status-badge.error { background: var(--fail); color: #fff; }
+
+        .main {
+            display: flex;
+            flex: 1;
+            min-height: 0;
+        }
+        .panel {
+            overflow: auto;
+            border-right: 1px solid var(--border);
+        }
+        .panel:last-of-type { border-right: none; }
+        .sidebar {
+            width: 260px;
+            padding: 16px;
+        }
+        .chain-panel {
+            width: 420px;
+            padding: 16px;
+        }
+        .detail-panel {
+            flex: 1;
+            padding: 20px;
+        }
+        .panel-title {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+        .plan-list { list-style: none; padding: 0; margin: 0; }
+        .plan-item {
+            padding: 10px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-bottom: 4px;
+            border: 1px solid transparent;
+        }
+        .plan-item:hover { background: var(--surface); }
+        .plan-item.active {
+            background: var(--accent-dim);
+            border-color: var(--accent);
+        }
+        .plan-item .plan-item-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 8px;
+            min-width: 0;
+        }
+        .plan-item .name {
+            font-weight: 500;
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 1;
+            min-width: 0;
+        }
+        .plan-item .file {
+            display: block;
+            font-size: 12px;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+            margin-top: 2px;
+        }
+        .plan-item .badge {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 8px;
+        }
+        .plan-item .badge.valid { background: var(--pass); color: var(--bg); }
+        .plan-item .badge.invalid { background: var(--fail); color: #fff; }
+        .plan-item .badge.pending { background: var(--surface); color: var(--text-muted); }
+
+        .chain {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+        .chain-step {
+            display: flex;
+            align-items: center;
+            gap: 0;
+        }
+        .chain-step-connector {
+            width: 24px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            align-self: center;
+        }
+        .chain-step-connector .line {
+            flex: 1;
+            width: 2px;
+            background: var(--border);
+            min-height: 6px;
+        }
+        .chain-step-connector .dot {
+            width: 8px;
+            height: 8px;
+            flex-shrink: 0;
+            border-radius: 50%;
+            background: var(--accent);
+        }
+        .chain-step:last-child .chain-step-connector .line-bottom { display: none; }
+        .chain-step:last-child .chain-step-connector .line-top { flex: 0; }
+        .chain-step-card {
+            flex: 1;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: border-color 0.15s;
+        }
+        .chain-step-card:hover { border-color: var(--accent); }
+        .chain-step-card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+        .chain-step-card .method {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-right: 8px;
+        }
+        .chain-step-card .method.GET { background: #3fb95033; color: var(--method-get); }
+        .chain-step-card .method.POST { background: #58a6ff33; color: var(--method-post); }
+        .chain-step-card .method.PUT { background: #d2992233; color: var(--method-put); }
+        .chain-step-card .method.DELETE { background: #f8514933; color: var(--method-delete); }
+        .chain-step-card .step-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+        .chain-step-card .step-name { font-weight: 500; flex: 1; min-width: 0; }
+        .chain-step-card .step-run-btn {
+            flex-shrink: 0;
+            padding: 4px 10px;
+            font-size: 11px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            color: var(--text-muted);
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: 500;
+        }
+        .chain-step-card .step-run-btn:hover { background: var(--surface); color: var(--accent); border-color: var(--accent); }
+        .chain-step-card .step-run-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .chain-step-card .step-url {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--text-muted);
+            word-break: break-all;
+        }
+        .chain-step-card .step-vars {
+            margin-top: 8px;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+        .chain-step-card .step-vars span { margin-right: 8px; }
+        .chain-step-card .step-vars .saves { color: var(--pass); }
+        .chain-step-card .step-vars .uses { color: var(--accent); }
+        .chain-step-card .step-status {
+            margin-top: 6px;
+            font-size: 11px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .chain-step-card.step-running .step-status { color: var(--warn); }
+        .chain-step-card.step-pass .step-status { color: var(--pass); }
+        .chain-step-card.step-fail .step-status { color: var(--fail); }
+        .chain-step-card.step-running { border-color: var(--warn); box-shadow: 0 0 0 1px var(--warn); }
+        .chain-step-card.step-pass { border-left: 3px solid var(--pass); }
+        .chain-step-card.step-fail { border-left: 3px solid var(--fail); }
+        .empty-chain {
+            color: var(--text-muted);
+            font-size: 14px;
+            padding: 24px;
+            text-align: center;
+        }
+
+        .detail-content h3 { margin-top: 0; font-size: 1.1rem; }
+        .detail-content pre {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            overflow: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+        .detail-content .meta { margin-bottom: 16px; color: var(--text-muted); font-size: 13px; }
+        .report-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .report-stat {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+        .report-stat .value { font-size: 1.5rem; font-weight: 700; }
+        .report-stat .label { font-size: 12px; color: var(--text-muted); }
+        .report-stat.passed .value { color: var(--pass); }
+        .report-stat.failed .value { color: var(--fail); }
+        .result-row {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+        }
+        .result-row.pass { border-left: 4px solid var(--pass); }
+        .result-row.fail { border-left: 4px solid var(--fail); }
+        .result-row .name { font-weight: 500; }
+        .result-row .code { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-muted); }
+        .result-row .error { color: var(--fail); font-size: 13px; }
+        .report-actions { margin-top: 16px; }
+        .report-actions a {
+            color: var(--accent);
+            text-decoration: none;
+            font-size: 13px;
+        }
+        .report-actions a:hover { text-decoration: underline; }
+        .req-res-section { margin-top: 20px; padding-top: 12px; border-top: 1px solid var(--border); }
+        .req-res-section:first-of-type { margin-top: 12px; }
+        .req-res-head { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin: 0 0 8px 0; }
+    </style>
 </head>
-
 <body>
 
-<div class="header">
-    <div class="header-content">
-        <h1>🚀 API Testplan Runner</h1>
-        <p>Validate • Visualize • Execute • Report</p>
+<nav class="navbar">
+    <span class="navbar-brand">API <span>Chain</span> Runner</span>
+    <div class="navbar-actions">
+        <button type="button" class="btn btn-success" id="btnRun" disabled>Run chain</button>
     </div>
+</nav>
+
+<div class="main">
+    <aside class="panel sidebar">
+        <div class="panel-title">Test plans</div>
+        <ul class="plan-list" id="planList"></ul>
+    </aside>
+    <section class="panel chain-panel">
+        <div class="panel-title">Request chain</div>
+        <div class="chain" id="chainContainer">
+            <div class="empty-chain" id="emptyChain">Select a test plan to see the request chain.</div>
+        </div>
+    </section>
+    <section class="panel detail-panel">
+        <div class="detail-content" id="detailContent">
+            <p class="meta">Select a test plan and a request to preview, or run the chain to see the report.</p>
+        </div>
+    </section>
 </div>
 
-<div class="container">
+<script>
+(function () {
+    const btnRun = document.getElementById('btnRun');
+    const planList = document.getElementById('planList');
+    const chainContainer = document.getElementById('chainContainer');
+    const emptyChain = document.getElementById('emptyChain');
+    const detailContent = document.getElementById('detailContent');
 
-    <div class="card">
-        <div class="title">Select & Run Testplan</div>
+    let API_BASE = location.origin.replace(/\/static.*$/, '');
+    let selectedPlan = null;
+    let currentPlanData = null;
 
-        <div class="control-row">
-            <select id="testplanSelect">
-                <option value="">-- Select Testplan --</option>
-            </select>
+    if (btnRun) btnRun.disabled = true;
+    let currentRequests = [];
+    let selectedStepIndex = null;
 
-            <button class="btn btn-refresh" onclick="loadTestplans()">🔄 Refresh</button>
-            <button class="btn btn-validate" onclick="validateTestplan()">✅ Validate</button>
-            <button class="btn btn-run" onclick="runTestplan()">▶ Run</button>
-        </div>
-    </div>
+    function updateRunButtonState() {
+        btnRun.disabled = !selectedPlan;
+    }
 
-    <div class="card">
-        <div class="title">Preview / Output</div>
-        <div id="previewArea">
-            <pre>Select a testplan and click Validate.</pre>
-        </div>
-    </div>
+    function api(path, options = {}) {
+        const url = (API_BASE.replace(/\/$/, '') + path).replace(/([^:]\/)\/+/g, '$1');
+        return fetch(url, options).then(r => {
+            if (!r.ok) throw new Error(r.status + ' ' + r.statusText);
+            return r.json();
+        });
+    }
 
-    <div class="card" id="reportCard" style="display:none;">
-        <div class="title">📄 Reports</div>
-        <div id="reportLinks"></div>
-    </div>
+    function getMethodClass(m) {
+        const u = (m || '').toUpperCase();
+        if (u === 'GET') return 'GET';
+        if (u === 'POST') return 'POST';
+        if (u === 'PUT') return 'PUT';
+        if (u === 'DELETE') return 'DELETE';
+        return '';
+    }
 
-</div>
+    async function loadPlans() {
+        try {
+            const data = await api('/testplans');
+            const plans = data.testPlans || {};
+            planList.innerHTML = '';
+            for (const [file, desc] of Object.entries(plans)) {
+                const li = document.createElement('li');
+                li.className = 'plan-item' + (selectedPlan === file ? ' active' : '');
+                li.dataset.file = file;
+                const name = typeof desc === 'string' ? desc : file;
+                const maxLen = 35;
+                const displayName = name.length > maxLen ? name.slice(0, maxLen) + '…' : name;
+                li.innerHTML = `<div class="plan-item-head"><span class="name" title="${escapeHtml(name)}">${escapeHtml(displayName)}</span><span class="badge pending">…</span></div><span class="file">${escapeHtml(file)}</span>`;
+                li.querySelector('.badge').textContent = '…';
+                li.addEventListener('click', () => selectPlan(file));
+                planList.appendChild(li);
+                (async function () {
+                    try {
+                        const result = await api('/testplans/' + encodeURIComponent(file) + '/validate');
+                        const isValid = result && result.valid === true;
+                        li.querySelector('.badge').className = 'badge ' + (isValid ? 'valid' : 'invalid');
+                        li.querySelector('.badge').textContent = isValid ? 'Valid' : 'Invalid';
+                    } catch {
+                        li.querySelector('.badge').className = 'badge invalid';
+                        li.querySelector('.badge').textContent = 'Invalid';
+                    }
+                })();
+            }
+        } catch (e) {
+        }
+        updateRunButtonState();
+    }
 
-<script src="app.js"></script>
+    function escapeHtml(s) {
+        const div = document.createElement('div');
+        div.textContent = s;
+        return div.innerHTML;
+    }
+
+    async function selectPlan(name) {
+        selectedPlan = name;
+        selectedStepIndex = null;
+        planList.querySelectorAll('.plan-item').forEach(el => {
+            el.classList.toggle('active', el.dataset.file === name);
+        });
+        try {
+            currentPlanData = await api('/testplans/' + encodeURIComponent(name));
+            currentRequests = currentPlanData.requests || [];
+            renderChain();
+            showDetailIntro();
+        } catch (e) {
+        }
+        updateRunButtonState();
+    }
+
+    function renderChain() {
+        emptyChain.style.display = currentRequests.length ? 'none' : 'block';
+        chainContainer.querySelectorAll('.chain-step').forEach(el => el.remove());
+        if (!currentRequests.length) return;
+        currentRequests.forEach((req, i) => {
+            const method = (req.method || 'GET').toUpperCase();
+            const methodClass = getMethodClass(req.method);
+            const name = req.name || 'Step ' + (i + 1);
+            const url = req.url || '';
+            const saves = req.save ? Object.entries(req.save).map(([k, v]) => `${k} ← ${v}`).join(', ') : '';
+            const uses = (url.match(/\{\{(.*?)\}\}/g) || []).join(' ');
+            const stepEl = document.createElement('div');
+            stepEl.className = 'chain-step';
+            stepEl.innerHTML = `
+                <div class="chain-step-connector">
+                    <div class="line line-top"></div>
+                    <div class="dot"></div>
+                    <div class="line line-bottom"></div>
+                </div>
+                <div class="chain-step-card ${selectedStepIndex === i ? 'selected' : ''}" data-index="${i}">
+                    <div class="step-header">
+                        <span class="method ${methodClass}">${escapeHtml(method)}</span>
+                        <span class="step-name">${escapeHtml(name)}</span>
+                        <button type="button" class="step-run-btn" data-step-index="${i}" title="Run this step (runs from start through this step)">Run</button>
+                    </div>
+                    <div class="step-url">${escapeHtml(url)}</div>
+                    ${saves || uses ? `<div class="step-vars">${saves ? `<span class="saves">Saves: ${escapeHtml(saves)}</span>` : ''} ${uses ? `<span class="uses">Uses: ${escapeHtml(uses)}</span>` : ''}</div>` : ''}
+                    <div class="step-status"></div>
+                </div>
+            `;
+            const card = stepEl.querySelector('.chain-step-card');
+            card.addEventListener('click', (e) => { if (!e.target.closest('.step-run-btn')) selectStep(i); });
+            const runBtn = stepEl.querySelector('.step-run-btn');
+            runBtn.addEventListener('click', (e) => { e.stopPropagation(); runStep(i); });
+            chainContainer.appendChild(stepEl);
+        });
+    }
+
+    async function runStep(stepIndex) {
+        if (!selectedPlan) return;
+        const card = getStepCard(stepIndex);
+        if (!card) return;
+        const runBtn = card.querySelector('.step-run-btn');
+        if (runBtn) runBtn.disabled = true;
+        setStepRunning(stepIndex);
+        detailContent.innerHTML = '<p class="meta">Running step ' + (stepIndex + 1) + '…</p>';
+        try {
+            const url = (API_BASE.replace(/\/$/, '') + '/testplans/' + encodeURIComponent(selectedPlan) + '/run/step/' + stepIndex).replace(/([^:]\/)\/+/g, '$1');
+            const res = await fetch(url, { method: 'POST' });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.detail || res.statusText);
+            }
+            const data = await res.json();
+            const result = data.result || data;
+            setStepResult(stepIndex, result);
+            const name = result.name || currentRequests[stepIndex]?.name || 'Step ' + (stepIndex + 1);
+            const fmt = (v) => v == null ? '' : (typeof v === 'object' ? JSON.stringify(v, null, 2) : String(v));
+            let html = '<h3>' + escapeHtml(name) + '</h3><p class="meta">Step ' + (stepIndex + 1) + ' result</p>';
+            html += '<div class="req-res-section"><h4 class="req-res-head">Request</h4>';
+            html += '<p><strong>Method</strong> ' + escapeHtml(String(result.method || '').toUpperCase()) + '</p>';
+            html += '<p><strong>URL</strong></p><pre>' + escapeHtml(result.url || '') + '</pre>';
+            if (result.request_headers && Object.keys(result.request_headers).length) html += '<p><strong>Headers</strong></p><pre>' + escapeHtml(fmt(result.request_headers)) + '</pre>';
+            if (result.request_body != null) html += '<p><strong>Body</strong></p><pre>' + escapeHtml(fmt(result.request_body)) + '</pre>';
+            html += '</div>';
+            html += '<div class="req-res-section"><h4 class="req-res-head">Response</h4>';
+            html += '<p><strong>Status</strong> ' + escapeHtml(String(result.status || '')) + ' &nbsp; <strong>Code</strong> ' + escapeHtml(String(result.response_code ?? '')) + '</p>';
+            if (result.error) html += '<p class="error"><strong>Error</strong> ' + escapeHtml(result.error) + '</p>';
+            if (result.response_headers && Object.keys(result.response_headers).length) html += '<p><strong>Headers</strong></p><pre>' + escapeHtml(fmt(result.response_headers)) + '</pre>';
+            if (result.response_sample != null) html += '<p><strong>Body</strong></p><pre>' + escapeHtml(fmt(result.response_sample)) + '</pre>';
+            html += '</div>';
+            detailContent.innerHTML = html;
+        } catch (e) {
+            setStepResult(stepIndex, { status: 'FAIL', error: e.message });
+            detailContent.innerHTML = '<p class="meta">Step failed.</p><p class="error">' + escapeHtml(e.message) + '</p>';
+        }
+        if (runBtn) runBtn.disabled = false;
+    }
+
+    function selectStep(i) {
+        selectedStepIndex = i;
+        renderChain();
+        const req = currentRequests[i];
+        if (!req) return;
+        const name = req.name || 'Step ' + (i + 1);
+        detailContent.innerHTML = `
+            <h3>${escapeHtml(name)}</h3>
+            <div class="meta">${escapeHtml((req.method || 'GET').toUpperCase())} — Step ${i + 1} of ${currentRequests.length}</div>
+            <p><strong>URL</strong></p>
+            <pre>${escapeHtml(req.url || '')}</pre>
+            <p><strong>Headers</strong></p>
+            <pre>${escapeHtml(JSON.stringify(req.headers || {}, null, 2))}</pre>
+            <p><strong>Body</strong></p>
+            <pre>${escapeHtml(typeof req.body === 'object' ? JSON.stringify(req.body, null, 2) : (req.body || '(none)'))}</pre>
+            ${req.save ? `<p><strong>Saves (chaining)</strong></p><pre>${escapeHtml(JSON.stringify(req.save, null, 2))}</pre>` : ''}
+            ${req.validate ? `<p><strong>Validate</strong></p><pre>${escapeHtml(JSON.stringify(req.validate, null, 2))}</pre>` : ''}
+        `;
+    }
+
+    function showDetailIntro() {
+        detailContent.innerHTML = '<p class="meta">Select a request in the chain to preview, or click <strong>Run chain</strong> to execute all requests in order.</p>';
+    }
+
+    function getStepCard(i) {
+        return chainContainer.querySelector('.chain-step-card[data-index="' + i + '"]');
+    }
+
+    function setStepRunning(i) {
+        const card = getStepCard(i);
+        if (!card) return;
+        card.classList.remove('step-pass', 'step-fail');
+        card.classList.add('step-running');
+        card.querySelector('.step-status').textContent = 'Running…';
+    }
+
+    function setStepResult(i, result) {
+        const card = getStepCard(i);
+        if (!card) return;
+        card.classList.remove('step-running');
+        const status = (result.status || '').toUpperCase();
+        const isPass = status === 'PASS';
+        card.classList.add(isPass ? 'step-pass' : 'step-fail');
+        const code = result.response_code != null ? result.response_code : '';
+        const msg = result.error ? result.error : (code ? code + ' OK' : (isPass ? 'OK' : 'FAIL'));
+        card.querySelector('.step-status').textContent = msg;
+    }
+
+    async function runChain() {
+        if (!selectedPlan) return;
+        detailContent.innerHTML = '<p class="meta">Executing request chain…</p>';
+        chainContainer.querySelectorAll('.chain-step-card').forEach(c => {
+            c.classList.remove('step-running', 'step-pass', 'step-fail');
+            c.querySelector('.step-status').textContent = '';
+        });
+        const streamUrl = (API_BASE.replace(/\/$/, '') + '/testplans/' + encodeURIComponent(selectedPlan) + '/run/stream').replace(/([^:]\/)\/+/g, '$1');
+        try {
+            const res = await fetch(streamUrl, { method: 'POST' });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.detail || res.statusText);
+            }
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            let lastReport = null;
+            let htmlReportPath = null;
+            if (currentRequests.length > 0) setStepRunning(0);
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
+                const parts = buffer.split('\n\n');
+                buffer = parts.pop() || '';
+                for (const part of parts) {
+                    const line = part.split('\n').find(l => l.startsWith('data: '));
+                    if (!line) continue;
+                    let event;
+                    try {
+                        event = JSON.parse(line.slice(6));
+                    } catch (_) { continue; }
+                    if (event.type === 'step') {
+                        const idx = event.index;
+                        setStepResult(idx, event.result);
+                        if (getStepCard(idx + 1)) setStepRunning(idx + 1);
+                    } else if (event.type === 'done') {
+                        lastReport = event.report;
+                        htmlReportPath = event.html_report || null;
+                        if (lastReport) renderReport(lastReport, htmlReportPath);
+                        chainContainer.querySelectorAll('.chain-step-card.step-running').forEach(c => {
+                            c.classList.remove('step-running');
+                            c.querySelector('.step-status').textContent = '';
+                        });
+                    } else if (event.type === 'error') {
+                        detailContent.innerHTML = '<p class="meta">Run failed.</p><p class="error">' + escapeHtml(event.detail || 'Unknown error') + '</p>';
+                    }
+                }
+            }
+            if (!lastReport) {
+                detailContent.innerHTML = '<p class="meta">Run finished. No report received.</p>';
+            }
+        } catch (e) {
+            detailContent.innerHTML = '<p class="meta">Run failed.</p><p class="error">' + escapeHtml(e.message) + '</p>';
+            chainContainer.querySelectorAll('.chain-step-card').forEach(c => {
+                c.classList.remove('step-running');
+                c.querySelector('.step-status').textContent = '';
+            });
+        }
+    }
+
+    function renderReport(report, htmlReportPath) {
+        const r = report.results || [];
+        const passed = report.passed ?? r.filter(x => x.status === 'PASS').length;
+        const failed = report.failed ?? r.filter(x => x.status === 'FAIL').length;
+        const time = report.execution_time_sec;
+        let html = `
+            <h3>Run report</h3>
+            <div class="report-summary">
+                <div class="report-stat"><span class="value">${r.length}</span><span class="label">Total</span></div>
+                <div class="report-stat passed"><span class="value">${passed}</span><span class="label">Passed</span></div>
+                <div class="report-stat failed"><span class="value">${failed}</span><span class="label">Failed</span></div>
+                <div class="report-stat"><span class="value">${time != null ? time + 's' : '—'}</span><span class="label">Time</span></div>
+            </div>
+        `;
+        r.forEach((row, i) => {
+            const status = (row.status || '').toUpperCase();
+            const isPass = status === 'PASS';
+            html += `
+                <div class="result-row ${isPass ? 'pass' : 'fail'}">
+                    <span class="name">${escapeHtml(row.name || 'Step ' + (i + 1))}</span>
+                    <span class="code">${escapeHtml((row.method || '') + ' ' + (row.url || ''))} → ${row.response_code ?? ''}</span>
+                    ${row.error ? `<div class="error">${escapeHtml(row.error)}</div>` : ''}
+                </div>
+            `;
+        });
+        if (htmlReportPath) {
+            const reportUrl = (API_BASE.replace(/\/$/, '') + htmlReportPath).replace(/([^:]\/)\/+/g, '$1');
+            html += `<div class="report-actions"><a href="${reportUrl}" target="_blank">Open full HTML report</a></div>`;
+        }
+        detailContent.innerHTML = html;
+    }
+
+    document.getElementById('btnRun').addEventListener('click', runChain);
+
+    updateRunButtonState();
+    loadPlans();
+})();
+</script>
+
 </body>
 </html>
