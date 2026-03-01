@@ -1,0 +1,47 @@
+{
+  "description": "Request Test Plan that calls dummy apis and runs chain",
+  "globals": {
+    "base": "http://127.0.0.1:8000"
+  },
+  "defaults": {
+    "headers": {
+      "Accept": "application/json",
+      "User-Agent": "API Runner/1.0"
+    }
+  },
+  "requests": [
+    {
+      "id": "auth",
+      "description": "Auth User API",
+      "method": "POST",
+      "url": "{{base}}/auth/login",
+      "body": {
+        "email": "<email>",
+        "password": "<password>"
+      },
+      "validate": {
+        "status_code": 200,
+        "verify": [
+          "<field1>",
+          "<field2>"
+        ]
+      },
+      "save": {
+        "auth_token": "token"
+      }
+    },
+    {
+      "id": "user_details",
+      "description": "Get User Details API",
+      "method": "GET",
+      "url": "{{base}}/users/me",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {{auth_token}}"
+      },
+      "validate": {
+        "status_code": 200
+      }
+    }
+  ]
+}

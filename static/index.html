@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Chain Runner</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/runner.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <span class="navbar-brand">API <span>Chain</span> Runner</span>
+    <div class="navbar-actions">
+        <a href="/static/db-viewer.html" class="btn btn-ghost">Database Viewer</a>
+        <button type="button" class="btn btn-success" id="btnRun" disabled>Run chain</button>
+    </div>
+</nav>
+
+<div class="main">
+    <aside class="panel sidebar">
+        <div class="panel-title">Test plans</div>
+        <ul class="plan-list" id="planList"></ul>
+    </aside>
+    <section class="panel chain-panel">
+        <div class="panel-title">Request chain</div>
+        <div class="chain" id="chainContainer">
+            <div class="empty-chain" id="emptyChain">Select a test plan to see the request chain.</div>
+        </div>
+    </section>
+    <section class="panel detail-panel">
+        <div class="detail-content" id="detailContent">
+            <p class="meta">Select a test plan and a request to preview, or run the chain to see the report.</p>
+        </div>
+    </section>
+</div>
+
+<script src="/static/js/runner.js"></script>
+
+</body>
+</html>

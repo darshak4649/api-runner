@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Viewer</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <span class="navbar-brand">Database <span>Viewer</span></span>
+    <div class="navbar-actions">
+        <div class="connection-status">
+            <div class="status-indicator" id="statusIndicator"></div>
+            <span id="statusText">Checking connection...</span>
+            <span id="schemaInfo"></span>
+        </div>
+        <a href="/static/index.html" class="btn btn-ghost">← Back to Runner</a>
+    </div>
+</nav>
+
+<div class="main">
+    <aside class="panel sidebar">
+        <div class="panel-title">Tables</div>
+        <ul class="table-list" id="tableList">
+            <li class="loading">Loading tables...</li>
+        </ul>
+    </aside>
+    <section class="panel content-area">
+        <div id="errorMessage"></div>
+        <div id="tableContent">
+            <div class="loading">Select a table to view its data</div>
+        </div>
+    </section>
+</div>
+
+<script src="/static/js/db-viewer.js"></script>
+
+</body>
+</html>
