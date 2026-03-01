@@ -108,7 +108,7 @@ Any `{{...}}` placeholder in URLs, headers, or body values is resolved at runtim
 ### Globals / Saved variables
 
 ```json
-"url": "{{base}}/vehicles/{{vehicle_id}}"
+"url": "{{base}}/users/{{user_id}}"
 ```
 
 ### Date & Time expressions
