@@ -48,24 +48,20 @@ Testplans live in the `testplans/` directory as `.json` files.
 
 ```json
 {
-    "id": "create_reservation",
-    "description": "Create Reservation API",
-    "method": "POST",
-    "url": "{{base}}/reservations",
+    "id": "user_details",
+    "description": "Get User Details API",
+    "method": "GET",
+    "url": "{{base}}/users/me",
     "headers": {
+        "Content-Type": "application/json",
         "Authorization": "Bearer {{auth_token}}"
     },
-    "body": {
-        "title": "Demo",
-        "start_time": "{{now() + days(1)}}",
-        "end_time": "{{now() + weeks(2)}}"
-    },
     "validate": {
-        "status_code": 201,
-        "verify": ["id", "title"]
+        "status_code": 200,
+    "verify": ["id"]
     },
-    "save": {
-        "reservation_id": "id"
+    "save":{
+        "user_id": "id"
     }
 }
 ```
@@ -85,8 +81,8 @@ Testplans live in the `testplans/` directory as `.json` files.
 
 ```json
 "validate": {
-    "status_code": 201,
-    "verify": ["id", "user.id", "token"]
+    "status_code": 200,
+    "verify": ["id"]
 }
 ```
 
@@ -97,12 +93,11 @@ Testplans live in the `testplans/` directory as `.json` files.
 
 ```json
 "save": {
-    "auth_token": "token",
-    "user_id": "user.id"
+    "user_id": "id"
 }
 ```
 
-Extracts values from the response JSON using dot-notation paths and stores them as variables for use in subsequent requests via `{{auth_token}}`.
+Extracts values from the response JSON using dot-notation paths and stores them as variables for use in subsequent requests via `{{user_id}}`.
 
 ---
 
@@ -113,7 +108,7 @@ Any `{{...}}` placeholder in URLs, headers, or body values is resolved at runtim
 ### Globals / Saved variables
 
 ```json
-"url": "{{base}}/vehicles/{{vehicle_id}}"
+"url": "{{base}}/users/{{user_id}}"
 ```
 
 ### Date & Time expressions
