@@ -16,4 +16,4 @@ CSV_REPORT_DIR = os.path.join(REPORT_DIR, "csv")
 os.makedirs(CSV_REPORT_DIR, exist_ok=True)
 
 # Database settings
-DATABASE_URL = "postgresql://darshakv:kpitImDk4649@localhost:5432/hmp_vmp"
+DATABASE_URL = "****"
