@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import router as testplan_router
+from app.api.db_routes import router as db_router
 from app.core.settings import STATIC_DIR
 
 app = FastAPI(title="API Testplan Runner")
@@ -18,6 +19,7 @@ app.add_middleware(
 
 # Routers
 app.include_router(testplan_router)
+app.include_router(db_router)
 
 # Static
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

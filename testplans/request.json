@@ -1,91 +1,46 @@
 {
+  "description": "Request Test Plan that calls dummy apis and runs chain",
   "globals": {
-    "base_url": "https://jsonplaceholder.typicode.com",
-    "token": "dummy-token"
+    "base": "http://127.0.0.1:8000"
+  },
+  "defaults": {
+    "headers": {
+      "Accept": "application/json",
+      "User-Agent": "API Runner/1.0"
+    }
   },
   "requests": [
     {
-      "name": "Create User",
+      "id": "auth",
+      "description": "Auth User API",
       "method": "POST",
-      "url": "{{base_url}}/users",
-      "headers": {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer {{token}}"
-      },
+      "url": "{{base}}/auth/login",
       "body": {
-        "name": "John Doe",
-        "email": "john.doe@example.com"
+        "email": "<email>",
+        "password": "<password>"
       },
       "validate": {
-        "status_code": 201,
-        "fields_present": ["id", "name", "email"]
+        "status_code": 200,
+        "verify": [
+          "<field1>",
+          "<field2>"
+        ]
       },
       "save": {
-        "user_id": "id"
+        "auth_token": "token"
       }
     },
     {
-      "name": "Get User",
+      "id": "user_details",
+      "description": "Get User Details API",
       "method": "GET",
-      "url": "{{base_url}}/users/{{user_id}}",
+      "url": "{{base}}/users/me",
       "headers": {
-        "Authorization": "Bearer {{token}}"
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {{auth_token}}"
       },
       "validate": {
-        "status_code": 200,
-        "fields_present": ["id", "name", "email"]
-      }
-    },
-    {
-      "name": "Get Another User",
-      "method": "GET",
-      "url": "{{base_url}}/users/{{user_id}}",
-      "headers": {
-        "Authorization": "Bearer {{token}}"
-      },
-      "validate": {
-        "status_code": 200,
-        "fields_present": ["id", "name", "email"]
-      }
-    },
-    {
-      "name": "Get Another User next",
-      "method": "GET",
-      "url": "{{base_url}}/users/{{user_id}}",
-      "headers": {
-        "Authorization": "Bearer {{token}}"
-      },
-      "validate": {
-        "status_code": 200,
-        "fields_present": [
-          "id",
-          "name",
-          "email"
-        ]
-      }
-    },
-    {
-      "name": "Get Another User next 2",
-      "method": "GET",
-      "url": "{{base_url}}/users/{{user_id}}",
-      "headers": {
-        "Authorization": "Bearer {{token}}"
-      },
-      "validate": {
-        "status_code": 200,
-        "fields_present": ["id", "name", "email"]
-      }
-    },
-    {
-      "name": "Get Another User next slkdnf",
-      "method": "GET",
-      "url": "{{base_url}}/users",
-      "headers": {
-        "Authorization": "Bearer {{token}}"
-      },
-      "validate": {
-        "status_code": 200,
-        "fields_present": ["id", "name", "email"]
+        "status_code": 200
       }
     }
   ]

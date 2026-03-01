@@ -25,8 +25,10 @@ class TestPlanError(Exception):
 class APIRunner:
     def __init__(self, testplan_dir: str, report_dir: str):
         self.testplan_dir = testplan_dir
+        self.report_dir = report_dir
         self.json_report_dir = os.path.join(report_dir, "json")
         self.html_report_dir = os.path.join(report_dir, "html")
+        self.csv_report_dir = os.path.join(report_dir, "csv")
 
     # ===================== PUBLIC API (USED BY app.py) =====================
 
@@ -56,6 +58,8 @@ class APIRunner:
             used_vars = self.extract_variables_static(req)
 
             for v in used_vars:
+                if _ExecutionEngine._resolve_expression(v.strip()) is not None:
+                    continue  # it's a valid date expression, not a variable
                 if v not in defined_vars:
                     errors.append(f"Undefined variable '{v}' in request '{name}'")
 
@@ -79,22 +83,27 @@ class APIRunner:
 
         json_path = os.path.join(self.json_report_dir, f"{testplan}_report.json")
         html_path = os.path.join(self.html_report_dir, f"{testplan}_report.html")
+        csv_path = os.path.join(self.csv_report_dir, f"{testplan}_report.csv")
 
         with open(json_path, "w") as f:
             json.dump(report, f, indent=2)
 
         with open(html_path, "w") as f:
             f.write(_ExecutionEngine.generate_html_report(report))
+        
+        with open(csv_path, "w") as f:
+            f.write(_ExecutionEngine.generate_csv_report(report))
 
         logger.info("Execution completed for %s", testplan)
 
         return {
             "json": f"/reports/json/{testplan}_report.json",
             "html": f"/reports/html/{testplan}_report.html",
+            "csv": f"/reports/csv/{testplan}_report.csv",
         }
 
     def run_testplan_stream(self, testplan: str):
-        """Yields events: {"type": "step", "index": i, "result": entry} then {"type": "done", "report": ..., "json_report": ..., "html_report": ...}."""
+        """Yields events: {"type": "step", "index": i, "result": entry} then {"type": "done", "report": ..., "json_report": ..., "html_report": ..., "csv_report": ...}."""
         path = self._get_testplan_path(testplan)
         engine = _ExecutionEngine(path)
         for event in engine.run_with_stream():
@@ -102,12 +111,16 @@ class APIRunner:
                 report = event["report"]
                 json_path = os.path.join(self.json_report_dir, f"{testplan}_report.json")
                 html_path = os.path.join(self.html_report_dir, f"{testplan}_report.html")
+                csv_path = os.path.join(self.csv_report_dir, f"{testplan}_report.csv")
                 with open(json_path, "w") as f:
                     json.dump(report, f, indent=2)
                 with open(html_path, "w") as f:
                     f.write(_ExecutionEngine.generate_html_report(report))
+                with open(csv_path, "w") as f:
+                    f.write(_ExecutionEngine.generate_csv_report(report))
                 event["json_report"] = f"/reports/json/{testplan}_report.json"
                 event["html_report"] = f"/reports/html/{testplan}_report.html"
+                event["csv_report"] = f"/reports/csv/{testplan}_report.csv"
             yield event
 
     def run_testplan_step(self, testplan: str, step_index: int) -> Dict[str, Any]:
@@ -168,6 +181,8 @@ class APIRunner:
                 used = APIRunner.extract_variables_static(req_list[i])
                 used_stripped = {str(v).strip() for v in used}
                 for v in used_stripped:
+                    if _ExecutionEngine._resolve_expression(v) is not None:
+                        continue  # date expression, not a variable
                     if v not in globals_keys and v in var_to_step:
                         added.add(var_to_step[v])
             if added <= required:
@@ -187,9 +202,13 @@ class _ExecutionEngine:
         if isinstance(obj, str):
             matches = re.findall(r"\{\{(.*?)\}\}", obj)
             for var in matches:
-                if var not in self.variables:
-                    raise TestPlanError(f"Undefined variable: {var}")
-                obj = obj.replace(f"{{{{{var}}}}}", str(self.variables[var]))
+                expr_result = self._resolve_expression(var.strip())
+                if expr_result is not None:
+                    obj = obj.replace(f"{{{{{var}}}}}", str(expr_result))
+                elif var.strip() in self.variables:
+                    obj = obj.replace(f"{{{{{var}}}}}", str(self.variables[var.strip()]))
+                else:
+                    raise TestPlanError(f"Undefined variable: {var.strip()}")
             return obj
 
         if isinstance(obj, dict):
@@ -199,6 +218,67 @@ class _ExecutionEngine:
             return [self.resolve_vars(v) for v in obj]
 
         return obj
+
+    @staticmethod
+    def _resolve_expression(expr: str) -> Any:
+        """
+        Evaluate date/time expressions inside {{ }}.
+        Supported syntax examples:
+            now()                          -> current UTC datetime ISO string
+            today()                        -> current UTC date ISO string
+            now() + days(30)               -> datetime 30 days from now
+            now() - weeks(2)               -> datetime 2 weeks ago
+            now() + months(3)              -> datetime 3 months from now
+            now() + hours(5)               -> datetime 5 hours from now
+            now() + minutes(90)            -> datetime 90 minutes from now
+            format(now() + days(7), '%Y-%m-%d')  -> formatted date string
+        Falls back to variable lookup if expression is not a date expression.
+        """
+        from datetime import datetime, timezone, timedelta
+
+        def _now():
+            return datetime.now(timezone.utc).replace(tzinfo=None)
+
+        def _today():
+            return datetime.now(timezone.utc).date()
+
+        def _days(n):    return timedelta(days=int(n))
+        def _weeks(n):   return timedelta(weeks=int(n))
+        def _hours(n):   return timedelta(hours=int(n))
+        def _minutes(n): return timedelta(minutes=int(n))
+
+        def _months(n):
+            # approximate months as 30 days
+            return timedelta(days=int(n) * 30)
+
+        def _format(dt, fmt):
+            if hasattr(dt, 'strftime'):
+                return dt.strftime(fmt)
+            return str(dt)
+
+        # Only evaluate if the expression contains a known date function
+        date_funcs = ("now(", "today(", "days(", "weeks(", "hours(", "minutes(", "months(", "format(")
+        if not any(f in expr for f in date_funcs):
+            return None  # signal: not a date expression, fall through to variable lookup
+
+        safe_globals = {
+            "__builtins__": {},
+            "now":     _now,
+            "today":   _today,
+            "days":    _days,
+            "weeks":   _weeks,
+            "hours":   _hours,
+            "minutes": _minutes,
+            "months":  _months,
+            "format":  _format,
+        }
+        try:
+            result = eval(expr, safe_globals)  # noqa: S307
+            if hasattr(result, 'isoformat'):
+                return result.isoformat()
+            return result
+        except Exception as e:
+            raise TestPlanError(f"Invalid date expression '{{{{expr}}}}': {e}")
 
     @staticmethod
     def extract_json_value(data: Any, path: str) -> Optional[Any]:
@@ -240,50 +320,330 @@ class _ExecutionEngine:
 
     @staticmethod
     def generate_html_report(report: Dict[str, Any]) -> str:
-        rows = ""
+        import html
+        from datetime import datetime
 
-        for r in report["results"]:
-            color = "green" if r["status"] == "PASS" else "red"
+        results = report.get("results", [])
+        passed = report.get("passed", sum(1 for r in results if r.get("status") == "PASS"))
+        failed = report.get("failed", sum(1 for r in results if r.get("status") == "FAIL"))
+        total = len(results)
+        exec_time = report.get("execution_time_sec", 0)
+        testplan = report.get("testplan", "Unknown")
+        timestamp = report.get("timestamp", datetime.now().isoformat())
+        success_rate = (passed / total * 100) if total > 0 else 0
 
-            rows += f"""
-            <tr>
-                <td>{r['name']}</td>
-                <td>{r['method']}</td>
-                <td>{r['url']}</td>
-                <td style="color:{color}">{r['status']}</td>
-                <td>{r['response_code']}</td>
-                <td><pre>{json.dumps(r['response_sample'], indent=2)}</pre></td>
-            </tr>
-            """
+        def escape(text):
+            if text is None:
+                return ""
+            return html.escape(str(text))
 
-        return f"""
-        <html>
-        <head>
-            <title>API Test Report</title>
-        </head>
-        <body>
-            <h2>API Test Execution Report</h2>
-            <table border="1">
-                <tr>
-                    <th>Name</th>
-                    <th>Method</th>
-                    <th>URL</th>
-                    <th>Status</th>
-                    <th>HTTP Code</th>
-                    <th>Response</th>
-                </tr>
-                {rows}
-            </table>
-        </body>
-        </html>
-        """
+        def fmt_json(data):
+            if data is None:
+                return ""
+            if isinstance(data, (dict, list)):
+                return escape(json.dumps(data, indent=2))
+            return escape(str(data))
+
+        METHOD_COLORS = {
+            "GET":    ("#1b5e20", "#e8f5e9"),
+            "POST":   ("#0d47a1", "#e3f2fd"),
+            "PUT":    ("#e65100", "#fff3e0"),
+            "PATCH":  ("#4a148c", "#f3e5f5"),
+            "DELETE": ("#b71c1c", "#ffebee"),
+        }
+
+        cards = ""
+        for idx, r in enumerate(results, 1):
+            status = r.get("status", "UNKNOWN")
+            is_pass = status == "PASS"
+            method = (r.get("method") or "GET").upper()
+            mc, mbg = METHOD_COLORS.get(method, ("#333", "#eee"))
+            code = r.get("response_code", "")
+            name = escape(r.get("name") or f"Step {idx}")
+            url  = escape(r.get("url") or "")
+            error = escape(r.get("error") or "")
+            req_body  = fmt_json(r.get("request_body"))
+            resp_body = fmt_json(r.get("response_sample"))
+
+            status_bg  = "#e8f5e9" if is_pass else "#ffebee"
+            status_col = "#2e7d32" if is_pass else "#c62828"
+            status_icon = "✓" if is_pass else "✗"
+
+            req_section = f'<pre class="code-block">{req_body}</pre>' if req_body else '<span class="none">—</span>'
+            resp_section = f'<pre class="code-block">{resp_body}</pre>' if resp_body else '<span class="none">—</span>'
+            error_section = f'<div class="error-msg">⚠ {error}</div>' if error else ""
+
+            cards += f'''
+        <div class="req-card">
+            <div class="req-header">
+                <span class="idx">#{idx}</span>
+                <span class="method-badge" style="color:{mc};background:{mbg}">{escape(method)}</span>
+                <span class="req-name">{name}</span>
+                <span class="status-badge" style="color:{status_col};background:{status_bg}">{status_icon} {escape(status)}</span>
+                <span class="code-badge" style="color:{status_col}">{escape(str(code))}</span>
+            </div>
+            <div class="req-url">{url}</div>
+            {error_section}
+            <div class="req-body-grid">
+                <div class="body-col">
+                    <div class="col-label">Request Body</div>
+                    {req_section}
+                </div>
+                <div class="body-col">
+                    <div class="col-label">Response Body</div>
+                    {resp_section}
+                </div>
+            </div>
+        </div>
+'''
+        
+        return f'''<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>API Test Report — {escape(testplan)}</title>
+<style>
+  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+  body {{
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-size: 12px;
+    background: #fff;
+    color: #212121;
+    padding: 24px;
+  }}
+
+  /* ── Summary header ── */
+  .report-title {{
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }}
+  .report-meta {{
+    font-size: 11px;
+    color: #757575;
+    margin-bottom: 16px;
+  }}
+  .summary {{
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }}
+  .stat {{
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 10px 20px;
+    text-align: center;
+    min-width: 90px;
+  }}
+  .stat .val {{
+    font-size: 22px;
+    font-weight: 700;
+    display: block;
+  }}
+  .stat .lbl {{
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    color: #757575;
+  }}
+  .stat.pass .val {{ color: #2e7d32; }}
+  .stat.fail .val {{ color: #c62828; }}
+
+  /* ── Request cards ── */
+  .req-card {{
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    margin-bottom: 14px;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    overflow: hidden;
+  }}
+  .req-header {{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: #fafafa;
+    border-bottom: 1px solid #e0e0e0;
+    flex-wrap: wrap;
+  }}
+  .idx {{
+    font-size: 11px;
+    color: #9e9e9e;
+    min-width: 24px;
+  }}
+  .method-badge {{
+    font-size: 10px;
+    font-weight: 700;
+    font-family: monospace;
+    padding: 2px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+  }}
+  .req-name {{
+    font-weight: 600;
+    font-size: 12px;
+    flex: 1;
+  }}
+  .status-badge {{
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 10px;
+    border-radius: 4px;
+  }}
+  .code-badge {{
+    font-family: monospace;
+    font-size: 12px;
+    font-weight: 700;
+    min-width: 36px;
+    text-align: right;
+  }}
+  .req-url {{
+    font-family: monospace;
+    font-size: 11px;
+    color: #455a64;
+    padding: 5px 12px;
+    background: #f5f5f5;
+    border-bottom: 1px solid #e0e0e0;
+    word-break: break-all;
+  }}
+  .error-msg {{
+    background: #fff3e0;
+    color: #e65100;
+    font-size: 11px;
+    padding: 5px 12px;
+    border-bottom: 1px solid #ffe0b2;
+  }}
+  .req-body-grid {{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+  }}
+  .body-col {{
+    padding: 8px 12px;
+    border-right: 1px solid #e0e0e0;
+  }}
+  .body-col:last-child {{ border-right: none; }}
+  .col-label {{
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    color: #9e9e9e;
+    margin-bottom: 4px;
+  }}
+  pre.code-block {{
+    font-family: monospace;
+    font-size: 10px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-all;
+    background: #f8f8f8;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 6px 8px;
+    margin: 0;
+  }}
+  .none {{ color: #bdbdbd; font-style: italic; }}
+
+  .footer {{
+    margin-top: 24px;
+    text-align: center;
+    font-size: 10px;
+    color: #bdbdbd;
+  }}
+
+  @media print {{
+    body {{ padding: 12px; }}
+    .req-card {{ page-break-inside: avoid; break-inside: avoid; }}
+  }}
+</style>
+</head>
+<body>
+
+<div class="report-title">API Test Execution Report</div>
+<div class="report-meta">Test Plan: {escape(testplan)} &nbsp;|&nbsp; Generated: {escape(timestamp)}</div>
+
+<div class="summary">
+  <div class="stat"><span class="val">{total}</span><span class="lbl">Total</span></div>
+  <div class="stat pass"><span class="val">{passed}</span><span class="lbl">Passed</span></div>
+  <div class="stat fail"><span class="val">{failed}</span><span class="lbl">Failed</span></div>
+  <div class="stat"><span class="val">{success_rate:.1f}%</span><span class="lbl">Success</span></div>
+  <div class="stat"><span class="val">{exec_time:.2f}s</span><span class="lbl">Duration</span></div>
+</div>
+
+{cards}
+
+<div class="footer">Generated by API Chain Runner</div>
+</body>
+</html>'''
+    
+    @staticmethod
+    def generate_csv_report(report: Dict[str, Any]) -> str:
+        import csv
+        from io import StringIO
+        
+        results = report.get("results", [])
+        
+        output = StringIO()
+        writer = csv.writer(output)
+        
+        # Write header
+        writer.writerow([
+            "Test #",
+            "Test Name",
+            "Method",
+            "Endpoint",
+            "Request Body",
+            "Response Status Code",
+            "Status (Pass/Fail)",
+            "Error Message",
+            "Response Body"
+        ])
+        
+        # Write data rows
+        for idx, r in enumerate(results, 1):
+            # Format request body
+            req_body = r.get("request_body")
+            if req_body is None:
+                req_body_str = ""
+            elif isinstance(req_body, (dict, list)):
+                req_body_str = json.dumps(req_body)
+            else:
+                req_body_str = str(req_body)
+            
+            # Format response body
+            resp_body = r.get("response_sample")
+            if resp_body is None:
+                resp_body_str = ""
+            elif isinstance(resp_body, (dict, list)):
+                resp_body_str = json.dumps(resp_body)
+            else:
+                resp_body_str = str(resp_body)
+            
+            writer.writerow([
+                idx,
+                r.get("name", f"Test {idx}"),
+                r.get("method", "GET"),
+                r.get("url", ""),
+                req_body_str,
+                r.get("response_code", "N/A"),
+                r.get("status", "UNKNOWN"),
+                r.get("error", ""),
+                resp_body_str
+            ])
+        
+        return output.getvalue()
 
     def run_with_stream(self):
+        from datetime import datetime
         results: List[Dict[str, Any]] = []
         start_time = time.time()
 
         for i, req in enumerate(self.config.get("requests", [])):
             entry = {
+                "step_index": i,
                 "name": req.get("name"),
                 "method": req.get("method"),
                 "url": None,
@@ -337,6 +697,7 @@ class _ExecutionEngine:
 
         report = {
             "testplan": self.config.get("name", "unknown"),
+            "timestamp": datetime.now().isoformat(),
             "total_requests": len(results),
             "passed": sum(1 for r in results if r["status"] == "PASS"),
             "failed": sum(1 for r in results if r["status"] == "FAIL"),
@@ -405,6 +766,7 @@ class _ExecutionEngine:
             raise TestPlanError(f"Invalid step index: {step_index}")
         req = req_list[step_index]
         entry = {
+            "step_index": step_index,
             "name": req.get("name"),
             "method": req.get("method"),
             "url": None,
@@ -444,7 +806,12 @@ class _ExecutionEngine:
             entry["status"] = "FAIL"
             entry["error"] = str(e)
             logger.error("Request failed: %s", str(e))
-        return {"index": step_index, "result": entry, "results_so_far": [entry]}
+        return {
+            "index": step_index,
+            "result": entry,
+            "results_so_far": [entry],
+            "executed_step_indices": [step_index],
+        }
 
     def run_only_steps(self, step_indices: List[int], target_step_index: int) -> Dict[str, Any]:
         """Run only the given step indices in order (e.g. minimal deps), then return the result for target_step_index."""
@@ -455,6 +822,7 @@ class _ExecutionEngine:
                 continue
             req = req_list[i]
             entry = {
+                "step_index": i,
                 "name": req.get("name"),
                 "method": req.get("method"),
                 "url": None,
@@ -501,6 +869,7 @@ class _ExecutionEngine:
             "index": target_step_index,
             "result": results_by_index[target_step_index],
             "results_so_far": [results_by_index[j] for j in step_indices if j in results_by_index],
+            "executed_step_indices": step_indices,
         }
 
     def run_with_report(self) -> Dict[str, Any]:

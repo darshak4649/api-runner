@@ -104,6 +104,7 @@ def run_testplan(testplan: str):
             "message": "Execution completed",
             "json_report": report_paths["json"],
             "html_report": report_paths["html"],
+            "csv_report": report_paths["csv"],
         }
     except TestPlanError as e:
         raise HTTPException(status_code=400, detail=e.message)
