@@ -48,24 +48,20 @@ Testplans live in the `testplans/` directory as `.json` files.
 
 ```json
 {
-    "id": "create_reservation",
-    "description": "Create Reservation API",
-    "method": "POST",
-    "url": "{{base}}/reservations",
+    "id": "user_details",
+    "description": "Get User Details API",
+    "method": "GET",
+    "url": "{{base}}/users/me",
     "headers": {
+        "Content-Type": "application/json",
         "Authorization": "Bearer {{auth_token}}"
     },
-    "body": {
-        "title": "Demo",
-        "start_time": "{{now() + days(1)}}",
-        "end_time": "{{now() + weeks(2)}}"
-    },
     "validate": {
-        "status_code": 201,
-        "verify": ["id", "title"]
+        "status_code": 200,
+    "verify": ["id"]
     },
-    "save": {
-        "reservation_id": "id"
+    "save":{
+        "user_id": "id"
     }
 }
 ```
@@ -85,8 +81,8 @@ Testplans live in the `testplans/` directory as `.json` files.
 
 ```json
 "validate": {
-    "status_code": 201,
-    "verify": ["id", "user.id", "token"]
+    "status_code": 200,
+    "verify": ["id"]
 }
 ```
 
@@ -97,8 +93,7 @@ Testplans live in the `testplans/` directory as `.json` files.
 
 ```json
 "save": {
-    "auth_token": "token",
-    "user_id": "user.id"
+    "user_id": "id"
 }
 ```
 
