@@ -97,7 +97,7 @@ Testplans live in the `testplans/` directory as `.json` files.
 }
 ```
 
-Extracts values from the response JSON using dot-notation paths and stores them as variables for use in subsequent requests via `{{auth_token}}`.
+Extracts values from the response JSON using dot-notation paths and stores them as variables for use in subsequent requests via `{{user_id}}`.
 
 ---
 
